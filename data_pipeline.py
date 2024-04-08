@@ -14,6 +14,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 import difflib
 import json
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import pickle
+from fuzzywuzzy import process
 
 def import_transcriptions():
     data = pd.read_csv(os.path.join(PATH_DATA,'transcriptions_with_sex.csv'))
@@ -172,7 +176,7 @@ def complete_missing_names(data:pd.DataFrame,name_freq: pd.DataFrame):
     missing_index = data[data['freq_male'].isna()].index 
     missing_names = data.loc[missing_index,'firstname_lower'].values.tolist()
     # reco = Recommender(name_freq)
-    print('**************** COMPLETING MISSING NAMES **************')
+    print('**************** COMPLETING MISSING NAMES with DiffLib **************')
     for i in range(len(missing_index)):
         index = missing_index[i]
         name= missing_names[i]
@@ -183,6 +187,61 @@ def complete_missing_names(data:pd.DataFrame,name_freq: pd.DataFrame):
             data.loc[index,'firstname_lower_enhanced'] = name_sex+' '+ new_name[0] 
     print(data.loc[missing_index][["firstname_lower","firstname_lower_enhanced"]])
     
+    
+    return data 
+
+def get_predictions_network(names):
+    model = load_model('my_model.h5')
+    with open('label_encoder.pickle', 'rb') as handle:
+        loaded_label_encoder = pickle.load(handle)
+
+    with open('tokenizer.pickle', 'rb') as handle:
+        tokenizer = pickle.load(handle)
+    new_texts = names
+    new_texts_seq = tokenizer.texts_to_sequences(new_texts)
+    new_texts_padded = pad_sequences(new_texts_seq, padding='post', maxlen=8)
+    predictions = model.predict(new_texts_padded)
+    predicted_labels = predictions.argmax(axis=-1) 
+    predicted_class_names = loaded_label_encoder.inverse_transform(predicted_labels)
+    predicted_class_names
+    return predicted_class_names
+
+
+
+def complete_missing_names_lstm(data:pd.DataFrame,name_freq: pd.DataFrame):
+    
+    
+    data['firstname_lower_lstm'] = data['firstname_lower']
+    missing_index = data[data['freq_male'].isna()].index 
+    missing_names = data.loc[missing_index,'firstname_lower'].values.tolist()
+    predictions = get_predictions_network(missing_names)
+    print('**************** COMPLETING MISSING NAMES with LSTM **************')
+    for i in range(len(missing_index)):
+        index = missing_index[i]
+        new_name = predictions[i]
+        if new_name:
+            name_sex = name_freq[name_freq["firstname"]== new_name]['name_sex'].iloc[0]
+            data.loc[index,'firstname_lower_lstm'] = name_sex+' '+ new_name 
+    print(data.loc[missing_index][["firstname_lower","firstname_lower_lstm"]])
+    
+    
+    return data 
+
+def complete_missing_names_fuzzy(data:pd.DataFrame,name_freq: pd.DataFrame):
+
+    data['firstname_lower_fuzzy'] = data['firstname_lower']
+    missing_index = data[data['freq_male'].isna()].index 
+    missing_names = data.loc[missing_index,'firstname_lower'].values.tolist()
+    choices = name_freq[name_freq['total']>250]['firstname'].unique()
+    print('**************** COMPLETING MISSING NAMES with FuzzyWizzy **************')
+    for i in range(len(missing_index)):
+        index = missing_index[i]
+        name= missing_names[i]
+        new_name = process.extract(name,choices= choices,limit=1)[0][0]
+        if new_name:
+            name_sex = name_freq[name_freq["firstname"]== new_name]['name_sex'].iloc[0]
+            data.loc[index,'firstname_lower_fuzzy'] = name_sex+' '+ new_name 
+    print(data.loc[missing_index][["firstname_lower","firstname_lower_fuzzy"]])
     
     return data 
 
@@ -203,6 +262,9 @@ def pipeline():
     data_prediction = merge_with_namefreq(data_prediction,name_freq)
     data_groundtruth = merge_with_namefreq(data_groundtruth,name_freq)
     data_prediction = complete_missing_names(data_prediction,name_freq)
+    data_prediction = complete_missing_names_lstm(data_prediction,name_freq)
+    data_prediction = complete_missing_names_fuzzy(data_prediction,name_freq)
+    
     
     make_dir(PATH_DATA_TREATED)
     data_prediction.to_parquet(os.path.join(PATH_DATA_TREATED,'data_prediction.pq'))

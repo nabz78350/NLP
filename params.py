@@ -54,3 +54,26 @@ FEATURES = [
     "employer",
     "occupation",
     "name_sex"]
+
+
+knn_args = {"n_neighbors":5,
+            "p": 2
+            }
+
+xgb_args = {"max_depth":6,
+            "n_estimators":100,
+            "n_jobs":-1
+            }
+
+mlp_args = {"vocab_size": 500,
+            "embed_size": 500,
+            "n_layers": 3,
+            "hidden_size":200,
+            "hidden_function": "relu",
+            "dropout_rate":0.1,
+            "max_document_length":200,
+            "num_epochs":200,
+            "batch_size":32,
+            "lr": 3e-4
+            
+            }
