@@ -64,6 +64,14 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras import Input
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import LSTM, GRU, Dense, Embedding, Dropout, GlobalAveragePooling1D, Flatten, SpatialDropout1D, Bidirectional
+
+
+##" for results 
+# import matplotlib.pyplot as plt
+# from sklearn.metrics import plot_confusion_matrix
+# from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
 class DataClass :
     
     def __init__(self,use_prediction : bool = True,
@@ -273,7 +281,8 @@ class KnnModel :
         X_new_tfidf = self.tfidf_transformer.transform(X_new_counts)
         self.y_pred_test = self.model.predict(X_new_tfidf)
         self.accuracy_test = accuracy_score(self.y_test,self.y_pred_test)
-
+        self.table_results = pd.DataFrame([self.y_pred_test,self.y_test]).T 
+        self.table_results.columns = ['PRED','TRUE'] 
 
 class NaiveBayesModel :
     
@@ -307,6 +316,8 @@ class NaiveBayesModel :
         X_new_tfidf = self.tfidf_transformer.transform(X_new_counts)
         self.y_pred_test = self.model.predict(X_new_tfidf.toarray())
         self.accuracy_test = accuracy_score(self.y_test,self.y_pred_test)
+        self.table_results = pd.DataFrame([self.y_pred_test,self.y_test]).T 
+        self.table_results.columns = ['PRED','TRUE'] 
         
         
 
@@ -343,6 +354,8 @@ class LogReg :
         X_new_tfidf = self.tfidf_transformer.transform(X_new_counts)
         self.y_pred_test = self.model.predict(X_new_tfidf.toarray())
         self.accuracy_test = accuracy_score(self.y_test,self.y_pred_test)
+        self.table_results = pd.DataFrame([self.y_pred_test,self.y_test]).T 
+        self.table_results.columns = ['PRED','TRUE'] 
 
 class XGBModel:
     
@@ -378,7 +391,8 @@ class XGBModel:
         X_test = self.vectorizer.transform(self.x_test)
         self.y_pred_test = self.model.predict(X_test)
         self.accuracy_test = accuracy_score(self.y_test,self.y_pred_test)
-    
+        self.table_results = pd.DataFrame([self.y_pred_test,self.y_test]).T 
+        self.table_results.columns = ['PRED','TRUE'] 
         
 class MLPModel :
     
@@ -440,7 +454,13 @@ class MLPModel :
         train_dense_results = self.model.evaluate(self.x_train, np.asarray(self.y_train), verbose=2, batch_size=256)
         test_dense_results = self.model.evaluate(self.x_test, self.y_test)
         self.accuracy_train = train_dense_results[1] *100
-        self.accuracy_test = test_dense_results[1] *100
+        self.accuracy_test = test_dense_results[1] *100 
+        self.y_pred = self.model.predict(self.x_test).flatten()
+        self.table_results = pd.DataFrame([self.y_pred,self.y_test]).T
+        self.table_results.columns = ["PRED","TRUE"]
+        self.table_results["PRED"] = self.table_results["PRED"].apply(lambda x : 1 if x >0.5 else 0)
+        self.table_results = self.table_results.astype(int) 
+        self.table_results
                         
             
 class Model:
