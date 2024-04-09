@@ -42,10 +42,9 @@ def rename_predictions(data,mapping) :
     return output 
 
 def encode_freq(x):
-    
-    if x > 0.75 :
+    if x > 0.5 :
         return 'prenom homme'
-    elif x <=0.25:
+    elif x <=5:
         return 'prenom femme'
     elif not x:
         return "mixte"
@@ -232,7 +231,7 @@ def complete_missing_names_fuzzy(data:pd.DataFrame,name_freq: pd.DataFrame):
     data['firstname_lower_fuzzy'] = data['firstname_lower']
     missing_index = data[data['freq_male'].isna()].index 
     missing_names = data.loc[missing_index,'firstname_lower'].values.tolist()
-    choices = name_freq[name_freq['total']>250]['firstname'].unique()
+    choices = name_freq[name_freq['total']>1000]['firstname'].unique()
     print('**************** COMPLETING MISSING NAMES with FuzzyWizzy **************')
     for i in range(len(missing_index)):
         index = missing_index[i]

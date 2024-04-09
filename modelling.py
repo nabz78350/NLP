@@ -105,26 +105,32 @@ class DataClass :
             self.features.remove('firstname_lower')
             self.features.append('firstname_lower_enhanced')
             print(self.features)
-        if self.use_enhanced == "lstm":
+        elif self.use_enhanced == "lstm":
             print('modifying features')
             print(self.features)
             self.features.remove('firstname_lower')
             self.features.append('firstname_lower_lstm')
             print(self.features)
+        elif self.use_enhanced == "fuzzy":
+            print('modifying features')
+            print(self.features)
+            self.features.remove('firstname_lower')
+            self.features.append('firstname_lower_fuzzy')
+            print(self.features)
         else :
             pass
         merged = self.data[self.features].fillna('').apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
         merged =  pd.DataFrame(merged,columns = [output_col]) 
-        # nltk.download('stopwords')
-        # s = stopwords.words('french')
-        # ps = nltk.wordnet.WordNetLemmatizer()
-        # for i in merged.index.tolist():
-        #     review = re.sub('[^a-zA-Z]', ' ', merged.loc[i,'X'])
-        #     review = review.lower()
-        #     review = review.split()
-        #     review = [ps.lemmatize(word) for word in review if not word in s]
-        #     review = ' '.join(review)
-        #     merged.loc[i, 'X'] = review
+        nltk.download('stopwords')
+        s = stopwords.words('french')
+        ps = nltk.wordnet.WordNetLemmatizer()
+        for i in merged.index.tolist():
+            review = re.sub('[^a-zA-Z]', ' ', merged.loc[i,'X'])
+            review = review.lower()
+            review = review.split()
+            review = [ps.lemmatize(word) for word in review if not word in s]
+            review = ' '.join(review)
+            merged.loc[i, 'X'] = review
         return merged 
     
     
