@@ -464,9 +464,7 @@ class MLPModel :
                         
             
 class Model:
-    
-    
-    
+
     def __init__(self,
                  data:DataModel,
                  model_name : str= "KNN",
