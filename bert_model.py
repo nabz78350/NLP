@@ -20,8 +20,8 @@ from transformers import AutoTokenizer
 torch.cuda.empty_cache()
 warnings.filterwarnings("ignore")
 
-BATCH_SIZE = 16
-EPOCHS = 5
+BATCH_SIZE = 32
+EPOCHS = 10
 device = "cuda" if cuda.is_available() else "cpu"
 
 
@@ -139,9 +139,10 @@ def train_model(train_loader, output_dir: str = "bert_model"):
 
 
 def save_model(model, output_dir):
-    check_or_create_directory(output_dir)
-    model_file_path = os.path.join(output_dir, "socface_model.pth")
+    check_or_create_directory("bert_models")
+    model_file_path = os.path.join("bert_models", output_dir + ".pth")
     model.save_pretrained(model_file_path)
+    print("saved")
 
 
 def main():
@@ -151,8 +152,8 @@ def main():
                 use_prediction=True,
                 use_enhanced=enhanced,
                 custom=custom,
-                augmented_data=False,
-                augmented_size=250,
+                augmented_data=True,
+                augmented_size=500,
             )
             data_class.create_dataset()
             modelling_data = DataModel(
@@ -164,7 +165,7 @@ def main():
             modelling_data.create_padding()
             train_loader, test_loader = split_data(modelling_data)
             output_dir = (
-                "bert_model_" + data_class.use_enhanced + "_" + str(data_class.custom)
+                "bert_" + data_class.use_enhanced + "_" + str(data_class.custom)
             )
             train_model(train_loader, output_dir)
 

@@ -80,3 +80,15 @@ def augment_class_data(data, target_class: int = 0, n_samples: int = 1000):
         all.append(create_synthetic_sample(unique_values_per_column))
 
     return pd.concat(all, axis=0)
+
+
+def build_path(custom: bool = True, use_enhanced: str = None):
+    root_path = "bert_models"
+    custom_str = str(custom)
+    use_enhanced_str = use_enhanced if use_enhanced is not None else "none"
+
+    subdir_path = "bert_" + use_enhanced_str + "_" + custom_str + ".pth"
+    dir_full_path = os.path.join(root_path, subdir_path)
+    path_weights = os.path.join(dir_full_path, "model.safetensors")
+    path_config = os.path.join(dir_full_path, "config.json")
+    return dir_full_path

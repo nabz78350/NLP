@@ -38,24 +38,21 @@ from tensorflow.keras.layers import (
     SpatialDropout1D,
     Bidirectional,
 )
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.metrics import accuracy_score
+
+nltk.download("stopwords")
+french_stopwords = stopwords.words("french")
 
 
-knn_args = {"n_neighbors": 1, "p": 2}
-
-xgb_args = {"max_depth": 6, "n_estimators": 100, "n_jobs": -1}
-
-mlp_args = {
-    "vocab_size": 500,
-    "embed_size": 500,
-    "n_layers": 3,
-    "hidden_size": 100,
-    "hidden_function": "relu",
-    "dropout_rate": 0.2,
-    "max_document_length": 100,
-    "num_epochs": 20,
-    "batch_size": 32,
-    "lr": 3e-4,
-}
+## for bert
+from bert_model import TextDataset
+from transformers import BertForSequenceClassification
+from torch.utils.data import DataLoader
+import torch
 
 
 class KnnModel:
@@ -98,16 +95,6 @@ class KnnModel:
         self.table_results = pd.DataFrame(
             {"PRED": self.y_pred_test, "TRUE": self.y_test}
         )
-
-
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.model_selection import GridSearchCV
-from sklearn.pipeline import Pipeline
-from sklearn.naive_bayes import BernoulliNB
-from sklearn.metrics import accuracy_score
-
-nltk.download("stopwords")
-french_stopwords = stopwords.words("french")
 
 
 class NaiveBayesModel:
@@ -218,15 +205,8 @@ class XGBModel:
 
         self.pipeline = Pipeline(
             [
-                (
-                    "vect",
-                    TfidfVectorizer(
-                        stop_words=french_stopwords,
-                        min_df=0.2,
-                        use_idf=True,
-                        ngram_range=(1, 3),
-                    ),
-                ),
+                ("vect", CountVectorizer(stop_words=french_stopwords)),
+                ("tfidf", TfidfTransformer()),
                 ("clf", xgb.XGBClassifier()),
             ]
         )
@@ -344,6 +324,60 @@ class MLPModel:
         self.table_results
 
 
+class BertModel:
+    def __init__(self, data: DataModel):
+        self.data = data
+        self.test = TextDataset(data.test)
+        self.test_loader = DataLoader(self.test, batch_size=self.data.test.shape[0])
+        self.model_file_path = build_path(data.custom, data.use_enhanced)
+        self.device = "cpu"
+        self.load_model()
+
+    def load_model(self):
+        self.model_trained = BertForSequenceClassification.from_pretrained(
+            self.model_file_path
+        )
+        self.model_trained.to(self.device)
+
+    def fit(self):
+        print(f"Bert model already fitted, results in {self.model_file_path}")
+        return
+
+    def predict(self):
+        test_all_predictions = []
+        test_all_true_labels = []
+        self.model_trained.eval()
+        epoch_loss_test = []
+        test_all_predictions = []
+        test_all_true_labels = []
+        s = 0
+        for data in self.test_loader:
+            s += 1
+            if s <= 1000:
+                targets = data["targets"].to(self.device)
+                mask = data["attention_mask"].to(self.device)
+                ids = data["input_ids"].to(self.device)
+                with torch.no_grad():
+                    loss, logits = self.model_trained(
+                        ids, token_type_ids=None, attention_mask=mask, labels=targets
+                    ).to_tuple()
+
+                    epoch_loss_test.append(loss.item())
+                    cpu_logits = logits.cpu().detach().numpy()
+                    test_all_predictions.extend(np.argmax(cpu_logits, axis=1).flatten())
+                    test_all_true_labels.extend(targets.cpu().numpy())
+            else:
+                print("done")
+                break
+        self.accuracy_test = (
+            accuracy_score(test_all_true_labels, test_all_predictions) * 100
+        )
+        self.accuracy_train = 1 * 100
+        self.table_results = pd.DataFrame(
+            {"PRED": test_all_predictions, "TRUE": test_all_true_labels}
+        )
+
+
 class Model:
     def __init__(self, data: DataModel, model_name: str = "KNN", model_args: dict = {}):
         self.data = data
@@ -383,6 +417,9 @@ class Model:
                 self.data.y_test,
                 self.model_args,
             )
+        elif self.model_name == "bert":
+            self.model = BertModel(self.data)
+
         self.model.fit()
 
     def predict(self):

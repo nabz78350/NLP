@@ -103,12 +103,14 @@ class DataClass:
         custom: bool = True,
         use_enhanced: str = "lstm",
         augmented_data: bool = True,
+        augmented_size: int = 10000,
     ):
         self.use_prediction = use_prediction
         self.path_dir = path_dir
         self.custom = custom
         self.use_enhanced = use_enhanced
         self.augment_data = augmented_data
+        self.augmented_size = augmented_size
         self.import_data()
 
     def import_data(self):
@@ -164,9 +166,9 @@ class DataClass:
         if is_train:
             if self.augment_data:
                 print("**************augmenting data set ***********")
-                df = augment_data(df, n_samples_class=10000)
+                df = augment_data(df, n_samples_class=self.augmented_size)
             else:
-                print("**************augmenting data set diabled ***********")
+                print("**************augmenting data set disabled ***********")
         df["X"] = (
             df[self.features]
             .fillna("")
@@ -182,7 +184,7 @@ class DataClass:
             train = self.data.drop(self.enhanced_index)
 
         else:
-            self.data = self.data.sample(frac=1)
+            self.data = self.data.sample(frac=1, random_state=42)
             frac = 0.33
             test = self.data.sample(frac=frac, random_state=42)
             train = self.data.drop(test.index)

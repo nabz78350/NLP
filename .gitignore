@@ -1,3 +1,4 @@
 model/
 clean_data/
 raw_data/
+bert_models/
