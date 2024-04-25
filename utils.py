@@ -1,14 +1,12 @@
-import matplotlib.pyplot as plt
-import pandas as pd
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
 import os
 import numpy as np
-import nltk
-import nltk
-from nltk.corpus import stopwords
+import pandas as pd
 import string
-from sklearn.metrics import f1_score, precision_score, recall_score
+import nltk
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+from nltk.corpus import stopwords
 
 nltk.download("stopwords")
 stop_words = set(stopwords.words("english"))
@@ -16,19 +14,23 @@ punctuation_list = string.punctuation
 
 
 def clean_text(text):
+    """
+    Cleans the text by removing stopwords, punctuation, and single characters.
+
+    Args:
+    text (str): Input text to be cleaned.
+
+    Returns:
+    str: Cleaned text.
+    """
     if text is not None:
-        # Tokenize the text by words and filter stopwords
         words = text.split()
         filtered_words = [word for word in words if word.lower() not in stop_words]
-
-        # Remove punctuation and special characters, also filter out single characters
         cleaned_text = " ".join(
             word
             for word in filtered_words
             if word not in punctuation_list and len(word) > 1
         )
-
-        # Remove any remaining punctuation from each word
         cleaned_text = "".join(
             char for char in cleaned_text if char not in punctuation_list
         )
@@ -39,13 +41,14 @@ def clean_text(text):
 
 def plot_confusion_matrix_from_df(df):
     """
-    This function plots a confusion matrix based on the PRED and TRUE columns of the dataframe.
+    Plots a confusion matrix based on the PRED and TRUE columns of the dataframe.
     Assumes 0 is 'femme' and 1 is 'homme'.
-    """
 
+    Args:
+    df (DataFrame): DataFrame containing 'PRED' and 'TRUE' columns.
+    """
     true_labels = df["TRUE"]
     pred_labels = df["PRED"]
-
     cm = confusion_matrix(true_labels, pred_labels, labels=[0, 1])
 
     fig, ax = plt.subplots()
@@ -64,6 +67,15 @@ def plot_confusion_matrix_from_df(df):
 
 
 def compute_metrics(df):
+    """
+    Computes precision, recall, and F1-score from the dataframe.
+
+    Args:
+    df (DataFrame): DataFrame containing 'PRED' and 'TRUE' columns.
+
+    Returns:
+    tuple: Precision, recall, and F1-score.
+    """
     precision = precision_score(df["TRUE"], df["PRED"])
     recall = recall_score(df["TRUE"], df["PRED"])
     f1 = f1_score(df["TRUE"], df["PRED"])
@@ -72,7 +84,13 @@ def compute_metrics(df):
 
 def calculate_accuracy_by_gender(df):
     """
-    This function calculates and returns the accuracy for each class ('femme' and 'homme') in percentage.
+    Calculates and returns the accuracy for each class ('femme' and 'homme') in percentage.
+
+    Args:
+    df (DataFrame): DataFrame containing 'PRED' and 'TRUE' columns.
+
+    Returns:
+    tuple: Accuracy for 'femme' and 'homme' classes.
     """
     cm = confusion_matrix(df["TRUE"], df["PRED"], labels=[0, 1])
     acc_femme = cm[0, 0] / sum(cm[0]) * 100  # Accuracy for femme
@@ -81,6 +99,12 @@ def calculate_accuracy_by_gender(df):
 
 
 def check_or_create_directory(dir_path):
+    """
+    Checks if a directory exists, if not, creates it.
+
+    Args:
+    dir_path (str): Directory path to check or create.
+    """
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
         print(f"Directory created: {dir_path}")
@@ -89,18 +113,38 @@ def check_or_create_directory(dir_path):
 
 
 def augment_data(data, target_column: str = "target", n_samples_class: int = 1000):
+    """
+    Augments data by generating synthetic samples.
+
+    Args:
+    data (DataFrame): Input DataFrame.
+    target_column (str): Name of the target column.
+    n_samples_class (int): Number of synthetic samples to generate per class.
+
+    Returns:
+    DataFrame: Augmented DataFrame.
+    """
     target_class = data[target_column].unique().tolist()
     results = []
     for target in target_class:
         data_class_augmented = augment_class_data(data, target, n_samples_class)
         results.append(data_class_augmented)
-
     return pd.concat(results)
 
 
 def augment_class_data(data, target_class: int = 0, n_samples: int = 1000):
+    """
+    Augments data for a specific class by generating synthetic samples.
+
+    Args:
+    data (DataFrame): Input DataFrame.
+    target_class (int): Target class.
+    n_samples (int): Number of synthetic samples to generate.
+
+    Returns:
+    DataFrame: Augmented DataFrame for the specific class.
+    """
     subclass_df = data[data["target"] == target_class]
-    # unique_values_per_column = {col: subclass_df[col].dropna().unique().tolist() for col in subclass_df.columns if col}
     unique_values_per_column = {
         col: subclass_df[col].unique().tolist() for col in subclass_df.columns if col
     }
@@ -116,15 +160,23 @@ def augment_class_data(data, target_class: int = 0, n_samples: int = 1000):
     all = []
     for i in range(n_samples):
         all.append(create_synthetic_sample(unique_values_per_column))
-
     return pd.concat(all, axis=0)
 
 
 def build_path(custom: bool = True, use_enhanced: str = None):
+    """
+    Builds the path for storing model files.
+
+    Args:
+    custom (bool): Indicates whether custom settings are used.
+    use_enhanced (str): Enhanced data option.
+
+    Returns:
+    str: Full path for storing model files.
+    """
     root_path = "bert_models"
     custom_str = str(custom)
     use_enhanced_str = use_enhanced if use_enhanced is not None else "none"
-
     subdir_path = "bert_" + use_enhanced_str + "_" + custom_str + ".pth"
     dir_full_path = os.path.join(root_path, subdir_path)
     path_weights = os.path.join(dir_full_path, "model.safetensors")
