@@ -6,8 +6,15 @@ from utils import *
 
 
 def main():
+    """
+    Orchestrates the model training and evaluation process, generating results for different configurations.
+
+    Iterates over various combinations of custom settings and misspelling methods, trains models, and aggregates results.
+
+    Output:
+    Results are saved in an Excel file named "results.xlsx" in the "results" directory.
+    """
     models = ["bert", "mlp", "knn", "xgb", "nb", "logreg", "benchmark"]
-    models = ["benchmark"]
     customs = [True, False]
     misspelling_method = ["enhanced", "lstm", "fuzzy", "none"]
 
