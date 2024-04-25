@@ -20,16 +20,34 @@ from fuzzywuzzy import process
 
 
 def import_transcriptions():
+    """
+    Imports transcription data with associated sex information from a CSV file.
+    Output: pd.DataFrame - Returns a dataframe containing the transcriptions.
+    """
     data = pd.read_csv(os.path.join(PATH_DATA, "transcriptions_with_sex.csv"))
     return data
 
 
 def read_yaml(file_path):
+    """
+    Reads and parses a YAML file into a Python object.
+    Arguments:
+    file_path: str - The path to the YAML file.
+    Output: dict - Returns the parsed YAML file content as a dictionary.
+    """
     with open(file_path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 
 def explode_column(data, column, tags):
+    """
+    Extracts and separates components of a column into separate columns based on specified tags.
+    Arguments:
+    data: pd.DataFrame - Dataframe containing the column to explode.
+    column: str - The column containing the tagged text to explode.
+    tags: list - List of tags used to split the column's content.
+    Output: pd.DataFrame - Returns the modified dataframe with new columns for each tag.
+    """
     output = data.copy()
     pattern = lambda tag: rf"{tag}: ([^:]+)(?= \w+:|$)"
     for tag in tags:
@@ -42,23 +60,36 @@ def explode_column(data, column, tags):
 
 
 def rename_predictions(data, mapping):
+    """
+    Renames columns in a dataframe based on a provided mapping.
+    Arguments:
+    data: pd.DataFrame - The dataframe to modify.
+    mapping: dict - Dictionary mapping old column names to new names.
+    Output: pd.DataFrame - Returns the renamed dataframe.
+    """
     output = data.copy()
     output = output.rename(columns=mapping)
     return output
 
 
 def encode_freq(x):
+    """
+    Encodes the frequency of names based on given thresholds.
+    Arguments:
+    x: float - The frequency value to encode.
+    Output: str - Returns the encoded frequency category as a string.
+    """
     if x > 0.5:
         return "prenom homme"
-    elif x <= 5:
-        return "prenom femme"
-    elif not x:
-        return "mixte"
     else:
-        return "mixte"
+        return "prenom femme"
 
 
 def import_freq_name():
+    """
+    Imports and processes a CSV containing first names and their frequencies by sex.
+    Output: pd.DataFrame - Returns a dataframe enriched with frequency calculations and name sex categorization.
+    """
     name_freq = pd.read_csv(os.path.join(PATH_DATA, "firstname_with_sex.csv"), sep=";")
     name_freq["total"] = name_freq[["male", "female"]].sum(1)
     name_freq["freq_male"] = name_freq["male"] / name_freq["total"]
@@ -68,6 +99,12 @@ def import_freq_name():
 
 
 def modify_firstname(data):
+    """
+    Standardizes the 'firstname' field in a dataframe.
+    Arguments:
+    data: pd.DataFrame - Dataframe containing the 'firstname' column to be modified.
+    Output: pd.DataFrame - Returns the dataframe with modified 'firstname' fields
+    """
     data["firstname"] = data["firstname"].apply(
         lambda x: str(x).split(" ")[0] if x else None
     )
@@ -87,6 +124,13 @@ def modify_firstname(data):
 
 
 def merge_with_namefreq(data, name_freq):
+    """
+    Merges a dataframe with a frequency data frame on the 'firstname' key.
+    Arguments:
+    data: pd.DataFrame - The main dataframe.
+    name_freq: pd.DataFrame - The dataframe containing frequency data.
+    Output: pd.DataFrame - Returns the merged dataframe.
+    """
     merged = data.merge(
         name_freq.set_index("firstname"),
         left_on="firstname_lower",
@@ -97,6 +141,12 @@ def merge_with_namefreq(data, name_freq):
 
 
 def get_list_valid_names(name_freq):
+    """
+    Retrieves a list of valid names based on specified frequency and threshold conditions.
+    Arguments:
+    name_freq: pd.DataFrame - Dataframe containing name frequencies.
+    Output: list - Returns a list of valid first names.
+    """
     valid_names = name_freq[
         ((name_freq["freq_female"] - 0.5).abs() > 0.25) & (name_freq["total"] > 1000)
     ]["firstname"].index.tolist()
@@ -127,74 +177,11 @@ def make_dir(dir_path):
         print(f"Directory '{dir_path}' already exists.")
 
 
-def read_json(file_path):
-    with open(file_path, "r") as file:
-        data = json.load(file)
-    return data
-
-
-def read_yaml(file_path):
-    with open(file_path, "r", encoding="utf-8") as file:
-        return yaml.safe_load(file)
-
-
-def transform_tags(tags):
-    tags_clean = {}
-    for col in tags:
-        tag = tags[col]["start"]
-        tags_clean[tag] = col
-    return tags_clean
-
-
-def parse_observation(observation, tags):
-    parts = re.split(
-        "(" + "|".join(re.escape(key) for key in tags.keys()) + ")", observation
-    )
-    parts = [part for part in parts if part]
-    result = {col: None for col in tags.values()}  # Initialize all columns with None
-
-    tag = None  # Keep track of the current tag
-    for part in parts:
-        if part in tags:  # If the part is a tag
-            tag = tags[part]
-        elif tag:  # If the part is not a tag, it is a value for the current tag
-            result[tag] = part
-            tag = None  # Reset tag for the next iteration
-
-    return result
-
-
-def parse_page(page, tags, name_page):
-    page_parsed = page.split("\n")
-    all = []
-    for obs in page_parsed:
-        res = parse_observation(obs, tags)
-        all.append(res)
-    all = pd.DataFrame(all)
-    all["name_page"] = name_page
-    all = all.set_index("name_page", append=True)
-    all = all.swaplevel()
-    all.index.names = ["page", "id"]
-    return all
-
-
-def parse_all_pages(data, tags):
-    results = []
-    for page in tqdm(list(data.keys())):
-        name_page = page.split("-")[-1].replace(".jpg", "")
-        page_clean = parse_page(data[page], tags, name_page)
-        results.append(page_clean)
-
-    return (
-        pd.concat(results, axis=0).dropna(axis=0, how="all").dropna(axis=1, how="all")
-    )
-
-
 def complete_missing_names(data: pd.DataFrame, name_freq: pd.DataFrame):
     data["firstname_lower_enhanced"] = data["firstname_lower"]
     missing_index = data[data["freq_male"].isna()].index
     missing_names = data.loc[missing_index, "firstname_lower"].values.tolist()
-    # reco = Recommender(name_freq)
+
     print("**************** COMPLETING MISSING NAMES with DiffLib **************")
     for i in range(len(missing_index)):
         index = missing_index[i]
@@ -288,74 +275,3 @@ def pipeline():
     make_dir(PATH_DATA_TREATED)
     data_prediction.to_parquet(os.path.join(PATH_DATA_TREATED, "data_prediction.pq"))
     data_groundtruth.to_parquet(os.path.join(PATH_DATA_TREATED, "data_groundtruth.pq"))
-
-
-class Recommender:
-    """
-    Implements a recommender system using Sentence-BERT for semantic text embedding and cosine
-    similarity for generating recommendations based on textual similarity.
-
-    Attributes:
-        df (pd.DataFrame): DataFrame containing data for recommendations.
-        model (SentenceTransformer): Pre-loaded Sentence-BERT model for text embedding.
-
-    Methods:
-        __init__(self, df: pd.DataFrame):
-            Initializes the recommender with data and a Sentence-BERT model.
-
-        compute_embeddings(self, texts: List[str]) -> np.ndarray:
-            Computes and returns embeddings for a list of text strings.
-
-        get_recommendations(self, query: str, similarity_threshold: float = 0.51) -> pd.DataFrame:
-            Returns recommendations for a given query, based on a similarity threshold.
-    """
-
-    def __init__(self, df: pd.DataFrame):
-        """
-        Initializes the Recommender with a pandas DataFrame and loads the Sentence-BERT model.
-
-        Parameters:
-            df (pd.DataFrame): The DataFrame containing the recommendation data.
-        """
-        self.df = df
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-
-    def compute_embeddings(self, texts: List[str]) -> np.ndarray:
-        """
-        Computes embeddings for a list of texts using the Sentence-BERT model.
-
-        Parameters:
-            texts (List[str]): Texts to encode into embeddings.
-
-        Returns:
-            np.ndarray: The computed embeddings.
-        """
-        return self.model.encode(texts)
-
-    def get_recommendations(
-        self, query: str, similarity_threshold: float = 0.51
-    ) -> pd.DataFrame:
-        """
-        Retrieves DataFrame rows as recommendations based on semantic similarity to the query.
-
-        Parameters:
-            query (str): The query text for finding similar items.
-            similarity_threshold (float, optional): Threshold for cosine similarity (default: 0.51).
-
-        Returns:
-            pd.DataFrame: Recommended items.
-        """
-        texts = self.df["firstname"].tolist() + [query]
-        embeddings = self.compute_embeddings(texts)
-
-        query_embedding = embeddings[-1].reshape(1, -1)
-        cosine_sim = cosine_similarity(query_embedding, embeddings[:-1])[0]
-        print(cosine_sim)
-        recommended_indices = [i for i, score in enumerate(cosine_sim)]
-        output = self.df
-        output["similarity"] = cosine_sim
-        return output
-
-
-if __name__ == "__main__":
-    pipeline()

@@ -6,7 +6,8 @@ from utils import *
 
 
 def main():
-    models = ["mlp", "knn", "xgb", "logreg", "nb"]
+    models = ["bert", "mlp", "knn", "xgb", "nb", "logreg", "benchmark"]
+    models = ["benchmark"]
     customs = [True, False]
     misspelling_method = ["enhanced", "lstm", "fuzzy", "none"]
 
@@ -14,7 +15,11 @@ def main():
     for custom in customs:
         for method in misspelling_method:
             data_class = DataClass(
-                use_prediction=True, use_enhanced=method, custom=custom
+                use_prediction=True,
+                use_enhanced=method,
+                custom=custom,
+                augmented_data=False,
+                augmented_size=2000,
             )
             data_class.create_dataset()
             modelling_data = DataModel(

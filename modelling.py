@@ -96,6 +96,19 @@ import seaborn as sns
 
 
 class DataClass:
+    """
+    Class: DataClass
+    Initializes a data class for managing and processing datasets for a sex prediction model, supporting custom configurations and enhanced features.
+
+    Arguments:
+    use_prediction: bool - Whether to use the predicted dataset or not. Default is True.
+    path_dir: str - Path to the directory containing the data files. Default is PATH_DATA_TREATED.
+    custom: bool - Whether to use a custom split for training and test data. Default is True.
+    use_enhanced: str - Type of enhancement used for the data ('lstm', 'enhanced', 'fuzzy'). Default is 'lstm'.
+    augmented_data: bool - Flag to indicate if data augmentation is enabled. Default is True.
+    augmented_size: int - Size of the augmented dataset. Default is 10000.
+    """
+
     def __init__(
         self,
         use_prediction: bool = True,
@@ -114,6 +127,10 @@ class DataClass:
         self.import_data()
 
     def import_data(self):
+        """
+        Imports and processes the necessary data files depending on the configuration settings.
+        It modifies data paths based on whether predictions are used and gathers additional information on first names by sex.
+        """
         if self.use_prediction:
             path = os.path.join(self.path_dir, "data_prediction.pq")
         else:
@@ -133,6 +150,11 @@ class DataClass:
             self.enhanced_index = []
 
     def merge_features(self, data, output_col: str = "X", is_train: bool = True):
+        """
+        Processes and merges features for the dataset based on the enhancement type specified, handles text cleaning,
+        and optionally augments the data if training. Returns a dataframe with mixed and cleaned feature columns and targets.
+        """
+
         self.features = [
             "link",
             "lob",
@@ -163,6 +185,10 @@ class DataClass:
         else:
             pass
         df = df[self.features + ["target"]]
+        print("**************cleaning text ***********")
+        for feature in self.features:
+            df[feature] = df[feature].apply(clean_text)
+
         if is_train:
             if self.augment_data:
                 print("**************augmenting data set ***********")
@@ -179,14 +205,18 @@ class DataClass:
         # return merged
 
     def create_dataset(self):
+        """
+        Splits the data into training and testing datasets based on custom or random settings,
+        processes features for both datasets, and stores processed data for training and testing.
+        """
         if self.custom:
             test = self.data.loc[self.enhanced_index]
             train = self.data.drop(self.enhanced_index)
 
         else:
-            self.data = self.data.sample(frac=1, random_state=42)
+            self.data = self.data.sample(frac=1, random_state=666)
             frac = 0.33
-            test = self.data.sample(frac=frac, random_state=42)
+            test = self.data.sample(frac=frac, random_state=666)
             train = self.data.drop(test.index)
 
         self.train = self.merge_features(data=train, is_train=True)
@@ -223,6 +253,21 @@ class DataClass:
 
 
 class DataModel:
+    """
+    Initializes a model for text processing and prediction setup using training and testing datasets managed by a DataClass instance. Configures text tokenization and padding for training.
+
+    Arguments:
+    data: DataClass - An instance of DataClass containing pre-processed training and test data.
+    custom_test_index: list - List of custom indices for the test set. Default is an empty list.
+    max_len: int - Maximum length of sequences after padding. Default is 50.
+    use_enhanced: str - Specifies the type of data enhancement used ('lstm', 'enhanced', 'fuzzy'). Default is 'lstm'.
+    custom: bool - Whether a custom setting is used for test data. Default is False.
+    trunc_type: str - Truncation type for padding ('pre' or 'post'). Default is 'post'.
+    padding_type: str - Padding type ('pre' or 'post'). Default is 'post'.
+    oov_tok: str - Out-of-vocabulary token. Default is '<OOV>'.
+    vocab_size: int - Size of the vocabulary for the tokenizer. Default is 500.
+    """
+
     def __init__(
         self,
         data: DataClass,
@@ -252,6 +297,10 @@ class DataModel:
         self.vocab_size = vocab_size
 
     def create_tokenizer(self):
+        """
+        Initializes and fits a tokenizer on the training data.
+        Output: None - Modifies the class instance by adding a tokenizer attribute.
+        """
         self.tokenizer = Tokenizer(
             num_words=self.vocab_size, char_level=False, oov_token=self.oov_tok
         )
@@ -259,6 +308,11 @@ class DataModel:
         self.tokenizer.fit_on_texts(self.x_train)
 
     def create_padding(self):
+        """
+        Creates padded sequences for both training and testing data using the tokenizer.
+        Arguments: None
+        Output: None - Outputs training and testing padded sequences and modifies the class instance by adding training_padded and testing_padded attributes.
+        """
         self.create_tokenizer()
 
         self.training_sequences = self.tokenizer.texts_to_sequences(self.x_train)

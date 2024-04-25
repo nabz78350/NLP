@@ -4,6 +4,37 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import os
 import numpy as np
+import nltk
+import nltk
+from nltk.corpus import stopwords
+import string
+from sklearn.metrics import f1_score, precision_score, recall_score
+
+nltk.download("stopwords")
+stop_words = set(stopwords.words("english"))
+punctuation_list = string.punctuation
+
+
+def clean_text(text):
+    if text is not None:
+        # Tokenize the text by words and filter stopwords
+        words = text.split()
+        filtered_words = [word for word in words if word.lower() not in stop_words]
+
+        # Remove punctuation and special characters, also filter out single characters
+        cleaned_text = " ".join(
+            word
+            for word in filtered_words
+            if word not in punctuation_list and len(word) > 1
+        )
+
+        # Remove any remaining punctuation from each word
+        cleaned_text = "".join(
+            char for char in cleaned_text if char not in punctuation_list
+        )
+    else:
+        cleaned_text = None
+    return cleaned_text
 
 
 def plot_confusion_matrix_from_df(df):
@@ -30,6 +61,13 @@ def plot_confusion_matrix_from_df(df):
     plt.xlabel("Predicted")
     plt.title("Confusion Matrix")
     plt.show()
+
+
+def compute_metrics(df):
+    precision = precision_score(df["TRUE"], df["PRED"])
+    recall = recall_score(df["TRUE"], df["PRED"])
+    f1 = f1_score(df["TRUE"], df["PRED"])
+    return precision, recall, f1
 
 
 def calculate_accuracy_by_gender(df):

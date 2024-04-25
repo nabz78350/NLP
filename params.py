@@ -65,7 +65,7 @@ mlp_args = {
     "hidden_function": "relu",
     "dropout_rate": 0.2,
     "max_document_length": 100,
-    "num_epochs": 20,
+    "num_epochs": 100,
     "batch_size": 32,
     "lr": 3e-4,
 }
